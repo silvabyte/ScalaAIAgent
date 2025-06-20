@@ -6,7 +6,7 @@ A Scala library for building AI agents with pluggable LLM providers. Easily swit
 
 - **Provider Abstraction**: Switch between LLM providers (OpenAI, Anthropic) without code changes
 - **Async/Non-blocking**: Built with Scala Futures for efficient concurrent operations
-- **Conversation Memory**: Automatic conversation history tracking
+- **Conversation Memory**: Conversation history tracking
 - **Type Safety**: Leverages Scala's type system for reliable API interactions
 - **JSON Serialization**: Built-in JSON support using uPickle
 - **Error Handling**: Comprehensive error handling for API failures
@@ -21,24 +21,7 @@ A Scala library for building AI agents with pluggable LLM providers. Easily swit
 
 ### 1. Setup Dependencies
 
-Add to your `build.mill`:
-
-```scala
-object YourProject extends ScalaModule {
-  def scalaVersion = "3.6.2"
-
-  def ivyDeps = Agg(
-    ivy"io.lettuce:lettuce-core:6.3.2.RELEASE",
-    ivy"com.lihaoyi::castor:0.3.0",
-    ivy"com.lihaoyi::upickle:4.1.0",
-    ivy"com.lihaoyi::os-lib:0.11.3",
-    ivy"com.outr::scribe:3.6.6",
-    ivy"com.lihaoyi::requests:0.9.0"
-  )
-
-  def moduleDeps = Seq(Agents) // Reference the Agents module
-}
-```
+//TODO: add this once an initial release version is cut
 
 ### 2. Basic Usage
 
