@@ -15,13 +15,14 @@ case class AgentConfig(
     maxTokens: Option[Int] = None
 )
 
-class Agent(config: AgentConfig) extends Logging:
+class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.empty) extends Logging:
 
-  // TODO: use a vector list type instead
-  private val conversationHistory = scala.collection.mutable.ListBuffer[ChatMessage]()
-
-  // Add system message with instructions
-  conversationHistory += ChatMessage(Role.System, config.instructions)
+  // Initialize with system message if history is empty
+  private var history: Vector[ChatMessage] = 
+    if initialHistory.isEmpty then
+      Vector(ChatMessage(Role.System, config.instructions))
+    else
+      initialHistory
 
   def name: String = config.name
   def provider: LLMProvider = config.provider
@@ -32,10 +33,10 @@ class Agent(config: AgentConfig) extends Logging:
 
     // Add user message to conversation history
     val userMsg = ChatMessage(Role.User, userChatMessage)
-    conversationHistory += userMsg
+    history = history :+ userMsg
 
     val request = ChatRequest(
-      messages = conversationHistory.toList,
+      messages = history.toList,
       model = config.model,
       temperature = config.temperature,
       maxTokens = config.maxTokens,
@@ -47,7 +48,7 @@ class Agent(config: AgentConfig) extends Logging:
       .map { response =>
         // Add assistant response to conversation history
         val assistantMsg = ChatMessage(Role.Assistant, response.content)
-        conversationHistory += assistantMsg
+        history = history :+ assistantMsg
 
         logger.info(s"Agent '${config.name}' generated response: ${response.content.take(100)}...")
         response
@@ -86,15 +87,14 @@ class Agent(config: AgentConfig) extends Logging:
         throw LLMError(s"Unexpected error: ${ex.getMessage}")
     }
 
-  def getConversationHistory: List[ChatMessage] = conversationHistory.toList
+  def getConversationHistory: List[ChatMessage] = history.toList
 
   def clearHistory(): Unit =
     logger.info(s"Agent '${config.name}' clearing conversation history")
-    conversationHistory.clear()
-    conversationHistory += ChatMessage(Role.System, config.instructions)
+    history = Vector(ChatMessage(Role.System, config.instructions))
 
   def addChatMessage(message: ChatMessage): Unit =
-    conversationHistory += message
+    history = history :+ message
 
   def withSystemChatMessage(systemChatMessage: String): Agent =
     val newConfig = config.copy(instructions = systemChatMessage)
