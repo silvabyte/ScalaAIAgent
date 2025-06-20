@@ -52,9 +52,3 @@ object AgentFactory:
       Agent(name, instructions, provider, model, temperature, maxTokens)
     }
 
-  // Convenience methods for common configurations
-  def quickOpenAI(apiKey: String, instructions: String): Try[Agent] =
-    createOpenAIAgent("Quick OpenAI Agent", instructions, apiKey)
-
-  def quickAnthropic(apiKey: String, instructions: String): Try[Agent] =
-    createAnthropicAgent("Quick Anthropic Agent", instructions, apiKey)

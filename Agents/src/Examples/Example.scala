@@ -8,9 +8,9 @@ import agents.providers.{AnthropicProvider, OpenAIProvider, LLMProvider}
 
 object Example extends App:
 
-  // Example 1: Quick setup with factory methods
-  def quickExample(): Unit =
-    println("=== Quick Example ===")
+  // Example 1: Basic setup with factory methods
+  def basicExample(): Unit =
+    println("=== Basic Example ===")
 
     // Get API keys from environment variables
     val openaiKey = sys.env.get("OPENAI_API_KEY")
@@ -18,7 +18,7 @@ object Example extends App:
 
     openaiKey match
       case Some(key) =>
-        AgentFactory.quickOpenAI(key, "You are a helpful assistant") match
+        AgentFactory.createOpenAIAgent("OpenAI Assistant", "You are a helpful assistant", key) match
           case Success(agent) =>
             val response = Await.result(agent.generateText("What is 2+2?"), 10.seconds)
             println(s"OpenAI Response: ${response.content}")
@@ -29,7 +29,7 @@ object Example extends App:
 
     anthropicKey match
       case Some(key) =>
-        AgentFactory.quickAnthropic(key, "You are a helpful assistant") match
+        AgentFactory.createAnthropicAgent("Anthropic Assistant", "You are a helpful assistant", key) match
           case Success(agent) =>
             val response = Await.result(agent.generateText("Explain quantum computing in one sentence"), 10.seconds)
             println(s"Anthropic Response: ${response.content}")
@@ -168,7 +168,7 @@ object Example extends App:
 
   // Run examples
   try
-    quickExample()
+    basicExample()
     advancedExample()
     conversationExample()
     errorHandlingExample()

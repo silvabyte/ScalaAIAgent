@@ -31,15 +31,19 @@ import scala.concurrent.{Future, Await}
 import scala.concurrent.duration.*
 import scala.util.{Success, Failure}
 
-// Quick setup with factory methods
+// Basic setup with factory methods
 val openaiKey = "your-openai-api-key"
 
-AgentFactory.quickOpenAI(openaiKey, "You are a helpful assistant") match
+AgentFactory.createOpenAIAgent(
+  name = "My Assistant",
+  instructions = "You are a helpful assistant", 
+  apiKey = openaiKey
+) match
   case Success(agent) =>
     val response = Await.result(agent.generateText("What is 2+2?"), 10.seconds)
     println(s"Response: ${response.content}")
   case Failure(ex) =>
-    println(s"Error: ${ex.getChatMessage}")
+    println(s"Error: ${ex.getMessage}")
 ```
 
 ### 3. Advanced Configuration
@@ -107,8 +111,7 @@ Factory methods for common agent configurations.
 object AgentFactory:
   def createOpenAIAgent(name: String, instructions: String, apiKey: String, model: String = "gpt-4o-mini"): Try[Agent]
   def createAnthropicAgent(name: String, instructions: String, apiKey: String, model: String = "claude-3-5-haiku-20241022"): Try[Agent]
-  def quickOpenAI(apiKey: String, instructions: String): Try[Agent]
-  def quickAnthropic(apiKey: String, instructions: String): Try[Agent]
+  def createAgent(name: String, instructions: String, provider: LLMProvider, model: String): Try[Agent]
 ```
 
 ### Provider Implementations

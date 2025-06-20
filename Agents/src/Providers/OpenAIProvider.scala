@@ -52,7 +52,6 @@ class OpenAIProvider(protected val apiKey: String) extends BaseLLMProvider:
     Try {
       val json = ujson.read(responseBody)
 
-      // Check for API errors
       if json.obj.contains("error") then
         val error = json("error")
         throw LLMError(
