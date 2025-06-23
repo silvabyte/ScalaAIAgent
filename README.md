@@ -5,6 +5,8 @@ A Scala library for building AI agents with pluggable LLM providers. Easily swit
 ## Features
 
 - **Provider Abstraction**: Switch between LLM providers (OpenAI, Anthropic) without code changes
+- **Structured Response Generation**: Generate JSON objects conforming to schemas for reliable data extraction
+- **Streaming Support**: Stream structured responses as they're generated
 - **Async/Non-blocking**: Built with Scala Futures for efficient concurrent operations
 - **Conversation Memory**: Conversation history tracking
 - **Type Safety**: Leverages Scala's type system for reliable API interactions
@@ -36,7 +38,7 @@ val openaiKey = "your-openai-api-key"
 
 AgentFactory.createOpenAIAgent(
   name = "My Assistant",
-  instructions = "You are a helpful assistant", 
+  instructions = "You are a helpful assistant",
   apiKey = openaiKey
 ) match
   case Success(agent) =>
@@ -71,6 +73,67 @@ val response = Await.result(
 println(response.content)
 ```
 
+### 4. Structured Response Generation
+
+```scala
+import agents.*
+import ujson.{Obj, Arr}
+
+// Define a schema for a person object
+val personSchema = JsonSchema(
+  schema = Obj(
+    "type" -> "object",
+    "properties" -> Obj(
+      "name" -> Obj("type" -> "string"),
+      "age" -> Obj("type" -> "number"),
+      "skills" -> Obj(
+        "type" -> "array",
+        "items" -> Obj("type" -> "string")
+      )
+    ),
+    "required" -> Arr("name", "age")
+  ),
+  description = Some("A person with name, age, and skills")
+)
+
+val agent = Agent(
+  name = "Data Extractor",
+  instructions = "Extract structured data from user input",
+  provider = new OpenAIProvider("your-api-key"),
+  model = "gpt-4o"
+)
+
+// Generate structured object
+val response = Await.result(
+  agent.generateObject("Create a profile for a software engineer named Alex", personSchema),
+  10.seconds
+)
+
+println(response.`object`)
+// Output: {"name": "Alex", "age": 28, "skills": ["Scala", "Java", "Python"]}
+```
+
+### 5. Streaming Structured Responses
+
+```scala
+import scala.concurrent.ExecutionContext.Implicits.global
+
+val streamResponse = agent.streamObject(
+  "Generate a detailed character profile for a fantasy novel",
+  characterSchema
+)
+
+streamResponse.foreach { iterator =>
+  iterator.foreach { chunk =>
+    if (chunk.isComplete) {
+      println(s"Final object: ${chunk.partialObject}")
+    } else {
+      println(s"Partial: ${chunk.partialObject}")
+    }
+  }
+}
+```
+
 ## API Reference
 
 ### Core Classes
@@ -87,6 +150,9 @@ case class Agent(config: AgentConfig)
 
 - `generateText(userChatMessage: String): Future[ChatResponse]` - Generate response with conversation history
 - `generateTextWithoutHistory(userChatMessage: String): Future[ChatResponse]` - Generate response without history
+- `generateObject(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse]` - Generate structured object with conversation history
+- `generateObjectWithoutHistory(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse]` - Generate structured object without history
+- `streamObject(userChatMessage: String, schema: JsonSchema): Future[Iterator[StreamingObjectResponse]]` - Stream structured object generation
 - `getConversationHistory: List[ChatMessage]` - Get current conversation
 - `clearHistory(): Unit` - Clear conversation history
 - `withSystemChatMessage(systemChatMessage: String): Agent` - Create new agent with different instructions
@@ -100,6 +166,8 @@ trait LLMProvider:
   def name: String
   def supportedModels: List[String]
   def chat(request: ChatRequest): Future[ChatResponse]
+  def generateObject(request: ObjectRequest): Future[ObjectResponse]
+  def streamObject(request: ObjectRequest): Future[Iterator[StreamingObjectResponse]]
   def validateModel(model: String): Boolean
 ```
 
@@ -144,6 +212,8 @@ class AnthropicProvider(apiKey: String) extends BaseLLMProvider
 
 ## Examples
 
+Run all examples: `./mill Agents.runMain agents.Example`
+
 ### Conversation with Memory
 
 ```scala
@@ -170,15 +240,16 @@ val response2 = Await.result(
 ### Error Handling
 
 ```scala
-try
-  val response = Await.result(agent.generateText("Hello"), 10.seconds)
-  println(response.content)
-catch
-  case ex: LLMError =>
+import scala.util.{Try, Success, Failure}
+
+Try(Await.result(agent.generateText("Hello"), 10.seconds)) match
+  case Success(response) =>
+    println(response.content)
+  case Failure(ex: LLMError) =>
     println(s"LLM Error: ${ex.message}")
     ex.code.foreach(code => println(s"Error code: $code"))
-  case ex =>
-    println(s"Unexpected error: ${ex.getChatMessage}")
+  case Failure(ex) =>
+    println(s"Unexpected error: ${ex.getMessage}")
 ```
 
 ### Model Comparison
@@ -194,6 +265,86 @@ val anthropicResponse = Await.result(anthropicAgent.generateText(prompt), 10.sec
 
 println(s"OpenAI: ${openaiResponse.content}")
 println(s"Anthropic: ${anthropicResponse.content}")
+```
+
+### Structured Data Extraction
+
+```scala
+import ujson.{Obj, Arr}
+
+val extractionSchema = JsonSchema(
+  schema = Obj(
+    "type" -> "object",
+    "properties" -> Obj(
+      "entities" -> Obj(
+        "type" -> "array",
+        "items" -> Obj(
+          "type" -> "object",
+          "properties" -> Obj(
+            "name" -> Obj("type" -> "string"),
+            "type" -> Obj("type" -> "string"),
+            "confidence" -> Obj("type" -> "number")
+          )
+        )
+      ),
+      "summary" -> Obj("type" -> "string")
+    )
+  ),
+  description = Some("Extract entities and provide a summary")
+)
+
+val agent = Agent(
+  name = "Entity Extractor",
+  instructions = "Extract entities from text and provide analysis",
+  provider = new OpenAIProvider("your-key"),
+  model = "gpt-4o"
+)
+
+val text = "Apple Inc. was founded by Steve Jobs in 1976. The company is headquartered in Cupertino, California."
+
+val result = Await.result(
+  agent.generateObject(s"Extract entities from: $text", extractionSchema),
+  10.seconds
+)
+
+println(s"Extracted data: ${result.`object`}")
+```
+
+### Schema Validation with Different Providers
+
+```scala
+val taskSchema = JsonSchema(
+  schema = Obj(
+    "type" -> "object",
+    "properties" -> Obj(
+      "tasks" -> Obj(
+        "type" -> "array",
+        "items" -> Obj(
+          "type" -> "object",
+          "properties" -> Obj(
+            "title" -> Obj("type" -> "string"),
+            "priority" -> Obj("type" -> "string", "enum" -> Arr("high", "medium", "low")),
+            "deadline" -> Obj("type" -> "string", "format" -> "date"),
+            "completed" -> Obj("type" -> "boolean")
+          ),
+          "required" -> Arr("title", "priority")
+        )
+      )
+    )
+  )
+)
+
+// Test with both providers
+val openaiAgent = Agent("OpenAI Planner", "Create task lists", new OpenAIProvider(key1), "gpt-4o")
+val anthropicAgent = Agent("Claude Planner", "Create task lists", new AnthropicProvider(key2), "claude-3-5-sonnet-20241022")
+
+val prompt = "Create a task list for planning a birthday party"
+
+val openaiTasks = Await.result(openaiAgent.generateObject(prompt, taskSchema), 10.seconds)
+val anthropicTasks = Await.result(anthropicAgent.generateObject(prompt, taskSchema), 10.seconds)
+
+println(s"OpenAI tasks: ${openaiTasks.`object`}")
+println(s"Anthropic tasks: ${anthropicTasks.`object`}")
 ```
 
 ## Building and Testing
@@ -226,25 +377,44 @@ The library uses a provider pattern to abstract different LLM APIs:
 Agent
   ├── AgentConfig (name, instructions, provider, model, etc.)
   ├── LLMProvider (interface)
-  │   ├── OpenAIProvider (OpenAI API implementation)
-  │   └── AnthropicProvider (Anthropic API implementation)
-  └── ChatMessage history (automatic conversation tracking)
+  │   ├── OpenAIProvider (OpenAI API implementation with JSON Schema)
+  │   └── AnthropicProvider (Anthropic API implementation with tools)
+  ├── ChatMessage history (automatic conversation tracking)
+  └── Structured Response Support
+      ├── JsonSchema (schema definitions)
+      ├── ObjectRequest/ObjectResponse (structured generation)
+      └── StreamingObjectResponse (streaming structured data)
 ```
 
 Key design principles:
 
 - **Provider abstraction** - Switch LLM backends without code changes
+- **Structured data generation** - JSON Schema-based object generation
+- **Streaming support** - Real-time structured response streaming
 - **Async by default** - All operations return Futures
 - **Type safety** - Strong typing for requests/responses
 - **Error handling** - Comprehensive error types and handling
 - **Memory management** - Automatic conversation history tracking
 
+### Structured Response Implementation
+
+- **OpenAI**: Uses native JSON Schema mode with `response_format` parameter
+- **Anthropic**: Uses tool-based approach for structured output generation
+- **Schema Validation**: JSON Schema definitions ensure consistent output format
+- **Streaming**: Incremental object construction for real-time applications
+
 ## Contributing
 
 1. Add new provider implementations by extending `BaseLLMProvider`
-2. Implement the required abstract methods: `buildHeaders`, `buildRequestBody`, `parseResponse`
+2. Implement the required abstract methods:
+   - `buildHeaders` - HTTP headers for API authentication
+   - `buildRequestBody` - Convert ChatRequest to provider-specific format
+   - `parseResponse` - Parse text response from provider
+   - `buildObjectRequestBody` - Convert ObjectRequest to provider-specific format
+   - `parseObjectResponse` - Parse structured object response from provider
 3. Add comprehensive tests for new providers
 4. Update documentation and examples
+5. Ensure both text and structured response generation work correctly
 
 ## License
 

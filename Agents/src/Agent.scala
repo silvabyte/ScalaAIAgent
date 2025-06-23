@@ -1,10 +1,20 @@
 package agents
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, ExecutionContext}
 import scribe.Logging
 import agents.providers.LLMProvider
-import agents.{ChatRequest, ChatResponse, ChatMessage, Role, LLMError}
+import agents.{
+  ChatRequest,
+  ChatResponse,
+  ObjectRequest,
+  ObjectResponse,
+  StreamingObjectResponse,
+  ChatMessage,
+  Role,
+  LLMError,
+  JsonSchema
+}
+import ujson.Value
 
 case class AgentConfig(
     name: String,
@@ -15,14 +25,12 @@ case class AgentConfig(
     maxTokens: Option[Int] = None
 )
 
-class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.empty) extends Logging:
+class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.empty)(implicit val ec: ExecutionContext)
+    extends Logging:
 
-  // Initialize with system message if history is empty
-  private var history: Vector[ChatMessage] = 
-    if initialHistory.isEmpty then
-      Vector(ChatMessage(Role.System, config.instructions))
-    else
-      initialHistory
+  private var history: Vector[ChatMessage] =
+    if initialHistory.isEmpty then Vector(ChatMessage(Role.System, config.instructions))
+    else initialHistory
 
   def name: String = config.name
   def provider: LLMProvider = config.provider
@@ -52,7 +60,7 @@ class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.em
 
         logger.info(s"Agent '${config.name}' generated response: ${response.content.take(100)}...")
         response
-      }
+      }(ec)
       .recover {
         case ex: LLMError =>
           logger.error(s"Agent '${config.name}' failed to generate text", ex)
@@ -60,7 +68,7 @@ class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.em
         case ex =>
           logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
           throw LLMError(s"Unexpected error: ${ex.getMessage}")
-      }
+      }(ec)
 
   def generateTextWithoutHistory(userChatMessage: String): Future[ChatResponse] =
     logger.info(s"Agent '${config.name}' generating text without history for: $userChatMessage")
@@ -78,14 +86,117 @@ class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.em
       stream = false
     )
 
-    config.provider.chat(request).recover {
-      case ex: LLMError =>
-        logger.error(s"Agent '${config.name}' failed to generate text without history", ex)
-        throw ex
-      case ex =>
-        logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
-        throw LLMError(s"Unexpected error: ${ex.getMessage}")
-    }
+    config.provider
+      .chat(request)
+      .recover {
+        case ex: LLMError =>
+          logger.error(s"Agent '${config.name}' failed to generate text without history", ex)
+          throw ex
+        case ex =>
+          logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
+          throw LLMError(s"Unexpected error: ${ex.getMessage}")
+      }(ec)
+
+  def generateObject(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse] =
+    logger.info(s"Agent '${config.name}' generating structured object for: $userChatMessage")
+
+    // Add user message to conversation history
+    val userMsg = ChatMessage(Role.User, userChatMessage)
+    history = history :+ userMsg
+
+    val request = ObjectRequest(
+      messages = history.toList,
+      model = config.model,
+      schema = schema,
+      temperature = config.temperature,
+      maxTokens = config.maxTokens,
+      stream = false
+    )
+
+    config.provider
+      .generateObject(request)
+      .map { response =>
+        // Add assistant response to conversation history (convert object to string representation)
+        val assistantMsg = ChatMessage(Role.Assistant, response.`object`.toString())
+        history = history :+ assistantMsg
+
+        logger.info(s"Agent '${config.name}' generated structured object")
+        response
+      }(ec)
+      .recover {
+        case ex: LLMError =>
+          logger.error(s"Agent '${config.name}' failed to generate structured object", ex)
+          throw ex
+        case ex =>
+          logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
+          throw LLMError(s"Unexpected error: ${ex.getMessage}")
+      }(ec)
+
+  def generateObjectWithoutHistory(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse] =
+    logger.info(s"Agent '${config.name}' generating structured object without history for: $userChatMessage")
+
+    val messages = List(
+      ChatMessage(Role.System, config.instructions),
+      ChatMessage(Role.User, userChatMessage)
+    )
+
+    val request = ObjectRequest(
+      messages = messages,
+      model = config.model,
+      schema = schema,
+      temperature = config.temperature,
+      maxTokens = config.maxTokens,
+      stream = false
+    )
+
+    config.provider
+      .generateObject(request)
+      .recover {
+        case ex: LLMError =>
+          logger.error(s"Agent '${config.name}' failed to generate structured object without history", ex)
+          throw ex
+        case ex =>
+          logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
+          throw LLMError(s"Unexpected error: ${ex.getMessage}")
+      }(ec)
+
+  def streamObject(userChatMessage: String, schema: JsonSchema): Future[Iterator[StreamingObjectResponse]] =
+    logger.info(s"Agent '${config.name}' streaming structured object for: $userChatMessage")
+
+    // Add user message to conversation history
+    val userMsg = ChatMessage(Role.User, userChatMessage)
+    history = history :+ userMsg
+
+    val request = ObjectRequest(
+      messages = history.toList,
+      model = config.model,
+      schema = schema,
+      temperature = config.temperature,
+      maxTokens = config.maxTokens,
+      stream = true
+    )
+
+    config.provider
+      .streamObject(request)
+      .map { iterator =>
+        iterator.map { response =>
+          // Update conversation history when streaming is complete
+          if (response.isComplete) {
+            val assistantMsg = ChatMessage(Role.Assistant, response.partialObject.toString())
+            history = history :+ assistantMsg
+            logger.info(s"Agent '${config.name}' completed streaming structured object")
+          }
+          response
+        }
+      }(ec)
+      .recover {
+        case ex: LLMError =>
+          logger.error(s"Agent '${config.name}' failed to stream structured object", ex)
+          throw ex
+        case ex =>
+          logger.error(s"Agent '${config.name}' encountered unexpected error during streaming", ex)
+          throw LLMError(s"Unexpected error: ${ex.getMessage}")
+      }(ec)
 
   def getConversationHistory: List[ChatMessage] = history.toList
 
@@ -108,6 +219,6 @@ object Agent:
       model: String,
       temperature: Option[Double] = None,
       maxTokens: Option[Int] = None
-  ): Agent =
+  )(implicit ec: ExecutionContext): Agent =
     val config = AgentConfig(name, instructions, provider, model, temperature, maxTokens)
     new Agent(config)

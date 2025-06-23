@@ -1,6 +1,7 @@
 package agents
 
 import scala.util.{Try, Success, Failure}
+import scala.concurrent.ExecutionContext.Implicits.global
 import agents.providers.{AnthropicProvider, OpenAIProvider, LLMProvider}
 
 object AgentFactory:

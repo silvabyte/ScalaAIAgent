@@ -2,7 +2,7 @@ package agents.providers
 
 import upickle.default.*
 import scala.util.{Try, Success, Failure}
-import agents.{ChatRequest, ChatResponse, Role, Usage, LLMError}
+import agents.{ChatRequest, ChatResponse, ObjectRequest, ObjectResponse, Role, Usage, LLMError}
 
 class AnthropicProvider(protected val apiKey: String) extends BaseLLMProvider:
 
@@ -87,4 +87,83 @@ class AnthropicProvider(protected val apiKey: String) extends BaseLLMProvider:
         Failure(LLMError(s"Failed to parse Anthropic response: ${ex.getMessage}"))
       case ex: NoSuchElementException =>
         Failure(LLMError(s"Missing required field in Anthropic response: ${ex.getMessage}"))
+    }
+
+  override protected def buildObjectRequestBody(request: ObjectRequest): ujson.Value =
+    // Anthropic separates system message from user/assistant messages
+    val (systemChatMessage, conversationChatMessages) = request.messages.partition(_.role == Role.System)
+
+    val messages = ujson.Arr(
+      conversationChatMessages.map(msg =>
+        ujson.Obj(
+          "role" -> (msg.role match
+            case Role.User      => "user"
+            case Role.Assistant => "assistant"
+            case Role.System    => throw new IllegalStateException("System messages should be filtered out")
+          ),
+          "content" -> msg.content
+        )
+      )*
+    )
+
+    // Add schema-based tool for structured output
+    val tool = ujson.Obj(
+      "name" -> "structured_response",
+      "description" -> request.schema.description.getOrElse("Generate a structured response according to the provided schema"),
+      "input_schema" -> request.schema.schema
+    )
+
+    val baseObj = ujson.Obj(
+      "model" -> request.model,
+      "messages" -> messages,
+      "max_tokens" -> request.maxTokens.getOrElse(1024),
+      "tools" -> ujson.Arr(tool),
+      "tool_choice" -> ujson.Obj("type" -> "tool", "name" -> "structured_response")
+    )
+
+    // Add system message if present
+    systemChatMessage.headOption.foreach(sys => baseObj("system") = sys.content)
+
+    request.temperature.foreach(temp => baseObj("temperature") = temp)
+
+    baseObj
+
+  override protected def parseObjectResponse(responseBody: String): Try[ObjectResponse] =
+    Try {
+      val json = ujson.read(responseBody)
+
+      if json.obj.contains("error") then
+        val error = json("error")
+        throw LLMError(
+          message = error("message").str,
+          code = error.obj.get("type").map(_.str)
+        )
+
+      // Extract tool use result for structured output
+      val content = json("content")
+      val toolUse = content.arr.find(item => item.obj.contains("type") && item("type").str == "tool_use")
+        .getOrElse(throw LLMError("No tool_use found in Anthropic structured response"))
+
+      val objectContent = toolUse("input")
+      val stopReason = json.obj.get("stop_reason").map(_.str)
+
+      val usage = json.obj.get("usage").map { u =>
+        Usage(
+          promptTokens = u("input_tokens").num.toInt,
+          completionTokens = u("output_tokens").num.toInt,
+          totalTokens = u("input_tokens").num.toInt + u("output_tokens").num.toInt
+        )
+      }
+
+      ObjectResponse(
+        `object` = objectContent,
+        usage = usage,
+        model = json("model").str,
+        finishReason = stopReason
+      )
+    }.recoverWith {
+      case ex: ujson.ParsingFailedException =>
+        Failure(LLMError(s"Failed to parse Anthropic object response: ${ex.getMessage}"))
+      case ex: NoSuchElementException =>
+        Failure(LLMError(s"Missing required field in Anthropic object response: ${ex.getMessage}"))
     }

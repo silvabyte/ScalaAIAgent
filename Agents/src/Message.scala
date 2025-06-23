@@ -1,6 +1,7 @@
 package agents
 
 import upickle.default.*
+import ujson.Value
 
 sealed trait Role derives ReadWriter
 
@@ -40,3 +41,36 @@ case class LLMError(
     code: Option[String] = None,
     statusCode: Option[Int] = None
 ) extends Exception(message)
+
+// Schema definitions for structured responses
+case class JsonSchema(
+    schema: ujson.Value,
+    description: Option[String] = None
+) derives ReadWriter
+
+// Request for structured object generation
+case class ObjectRequest(
+    messages: List[ChatMessage],
+    model: String,
+    schema: JsonSchema,
+    temperature: Option[Double] = None,
+    maxTokens: Option[Int] = None,
+    stream: Boolean = false
+) derives ReadWriter
+
+// Response containing structured object
+case class ObjectResponse(
+    `object`: ujson.Value,
+    usage: Option[Usage] = None,
+    model: String,
+    finishReason: Option[String] = None
+) derives ReadWriter
+
+// Streaming response for structured objects
+case class StreamingObjectResponse(
+    partialObject: ujson.Value,
+    isComplete: Boolean = false,
+    usage: Option[Usage] = None,
+    model: String,
+    finishReason: Option[String] = None
+) derives ReadWriter
