@@ -101,26 +101,6 @@ println(response.`object`)
 // Output: {"name": "Alex", "age": 28, "skills": ["Scala", "Java", "Python"]}
 ```
 
-### 5. Streaming Structured Responses
-
-```scala
-import scala.concurrent.ExecutionContext.Implicits.global
-
-val streamResponse = agent.streamObject(
-  "Generate a detailed character profile for a fantasy novel",
-  characterSchema
-)
-
-streamResponse.foreach { iterator =>
-  iterator.foreach { chunk =>
-    if (chunk.isComplete) {
-      println(s"Final object: ${chunk.partialObject}")
-    } else {
-      println(s"Partial: ${chunk.partialObject}")
-    }
-  }
-}
-```
 
 ## API Reference
 
@@ -140,7 +120,6 @@ case class Agent(config: AgentConfig)
 - `generateTextWithoutHistory(userChatMessage: String): Future[ChatResponse]` - Generate response without history
 - `generateObject(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse]` - Generate structured object with conversation history
 - `generateObjectWithoutHistory(userChatMessage: String, schema: JsonSchema): Future[ObjectResponse]` - Generate structured object without history
-- `streamObject(userChatMessage: String, schema: JsonSchema): Future[Iterator[StreamingObjectResponse]]` - Stream structured object generation
 - `getConversationHistory: List[ChatMessage]` - Get current conversation
 - `clearHistory(): Unit` - Clear conversation history
 - `withSystemChatMessage(systemChatMessage: String): Agent` - Create new agent with different instructions
@@ -155,7 +134,6 @@ trait LLMProvider:
   def supportedModels: List[String]
   def chat(request: ChatRequest): Future[ChatResponse]
   def generateObject(request: ObjectRequest): Future[ObjectResponse]
-  def streamObject(request: ObjectRequest): Future[Iterator[StreamingObjectResponse]]
   def validateModel(model: String): Boolean
 ```
 
@@ -370,8 +348,7 @@ Agent
   ├── ChatMessage history (automatic conversation tracking)
   └── Structured Response Support
       ├── JsonSchema (schema definitions)
-      ├── ObjectRequest/ObjectResponse (structured generation)
-      └── StreamingObjectResponse (streaming structured data)
+      └── ObjectRequest/ObjectResponse (structured generation)
 ```
 
 ## Contributing
