@@ -2,18 +2,6 @@
 
 A Scala library for building AI agents with pluggable LLM providers. Easily switch between OpenAI, Anthropic, and other language model APIs without changing your core agent logic.
 
-## Features
-
-- **Provider Abstraction**: Switch between LLM providers (OpenAI, Anthropic) without code changes
-- **Structured Response Generation**: Generate JSON objects conforming to schemas for reliable data extraction
-- **Streaming Support**: Stream structured responses as they're generated
-- **Async/Non-blocking**: Built with Scala Futures for efficient concurrent operations
-- **Conversation Memory**: Conversation history tracking
-- **Type Safety**: Leverages Scala's type system for reliable API interactions
-- **JSON Serialization**: Built-in JSON support using uPickle
-- **Error Handling**: Comprehensive error handling for API failures
-- **Flexible Configuration**: Customizable temperature, max tokens, and other parameters
-
 ## Supported Providers
 
 - **OpenAI**: GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-4, GPT-3.5-turbo
@@ -385,23 +373,6 @@ Agent
       ├── ObjectRequest/ObjectResponse (structured generation)
       └── StreamingObjectResponse (streaming structured data)
 ```
-
-Key design principles:
-
-- **Provider abstraction** - Switch LLM backends without code changes
-- **Structured data generation** - JSON Schema-based object generation
-- **Streaming support** - Real-time structured response streaming
-- **Async by default** - All operations return Futures
-- **Type safety** - Strong typing for requests/responses
-- **Error handling** - Comprehensive error types and handling
-- **Memory management** - Automatic conversation history tracking
-
-### Structured Response Implementation
-
-- **OpenAI**: Uses native JSON Schema mode with `response_format` parameter
-- **Anthropic**: Uses tool-based approach for structured output generation
-- **Schema Validation**: JSON Schema definitions ensure consistent output format
-- **Streaming**: Incremental object construction for real-time applications
 
 ## Contributing
 
