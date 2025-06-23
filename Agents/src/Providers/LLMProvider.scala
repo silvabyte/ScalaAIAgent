@@ -2,7 +2,7 @@ package agents.providers
 
 import scala.concurrent.Future
 import scala.util.Try
-import agents.{ChatRequest, ChatResponse, ObjectRequest, ObjectResponse, StreamingObjectResponse, LLMError}
+import agents.{ChatRequest, ChatResponse, ObjectRequest, ObjectResponse, LLMError}
 
 trait LLMProvider:
   def name: String
@@ -10,7 +10,6 @@ trait LLMProvider:
 
   def chat(request: ChatRequest): Future[ChatResponse]
   def generateObject(request: ObjectRequest): Future[ObjectResponse]
-  def streamObject(request: ObjectRequest): Future[Iterator[StreamingObjectResponse]]
   def validateModel(model: String): Boolean = supportedModels.contains(model)
 
   protected def buildHeaders(apiKey: String): Map[String, String]
@@ -65,15 +64,3 @@ abstract class BaseLLMProvider extends LLMProvider:
       responseText <- makeRequest(s"$baseUrl/chat/completions", headers, body)
       response <- Future.fromTry(parseObjectResponse(responseText))
     yield response
-
-  override def streamObject(request: ObjectRequest): Future[Iterator[StreamingObjectResponse]] =
-    // Default implementation: generate the complete object and emit it as a single stream item
-    generateObject(request).map { response =>
-      Iterator(StreamingObjectResponse(
-        partialObject = response.`object`,
-        isComplete = true,
-        usage = response.usage,
-        model = response.model,
-        finishReason = response.finishReason
-      ))
-    }

@@ -8,7 +8,6 @@ import agents.{
   ChatResponse,
   ObjectRequest,
   ObjectResponse,
-  StreamingObjectResponse,
   ChatMessage,
   Role,
   LLMError,
@@ -157,44 +156,6 @@ class Agent(config: AgentConfig, initialHistory: Vector[ChatMessage] = Vector.em
           throw ex
         case ex =>
           logger.error(s"Agent '${config.name}' encountered unexpected error", ex)
-          throw LLMError(s"Unexpected error: ${ex.getMessage}")
-      }(ec)
-
-  def streamObject(userChatMessage: String, schema: JsonSchema): Future[Iterator[StreamingObjectResponse]] =
-    logger.info(s"Agent '${config.name}' streaming structured object for: $userChatMessage")
-
-    // Add user message to conversation history
-    val userMsg = ChatMessage(Role.User, userChatMessage)
-    history = history :+ userMsg
-
-    val request = ObjectRequest(
-      messages = history.toList,
-      model = config.model,
-      schema = schema,
-      temperature = config.temperature,
-      maxTokens = config.maxTokens,
-      stream = true
-    )
-
-    config.provider
-      .streamObject(request)
-      .map { iterator =>
-        iterator.map { response =>
-          // Update conversation history when streaming is complete
-          if (response.isComplete) {
-            val assistantMsg = ChatMessage(Role.Assistant, response.partialObject.toString())
-            history = history :+ assistantMsg
-            logger.info(s"Agent '${config.name}' completed streaming structured object")
-          }
-          response
-        }
-      }(ec)
-      .recover {
-        case ex: LLMError =>
-          logger.error(s"Agent '${config.name}' failed to stream structured object", ex)
-          throw ex
-        case ex =>
-          logger.error(s"Agent '${config.name}' encountered unexpected error during streaming", ex)
           throw LLMError(s"Unexpected error: ${ex.getMessage}")
       }(ec)
 

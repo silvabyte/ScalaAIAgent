@@ -18,7 +18,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * - ./mill Agents.runMain agents.examples.ModelComparisonExample
  * - ./mill Agents.runMain agents.examples.StructuredResponseExample
  * - ./mill Agents.runMain agents.examples.EntityExtractionExample
- * - ./mill Agents.runMain agents.examples.StreamingStructuredExample
  */
 object AllExamples extends App:
   
@@ -48,9 +47,6 @@ object AllExamples extends App:
     Thread.sleep(1000)
     
     EntityExtractionExample.main(Array.empty)
-    Thread.sleep(1000)
-    
-    StreamingStructuredExample.main(Array.empty)
   } match {
     case Success(_) =>
       println("\n" + "=" * 60)

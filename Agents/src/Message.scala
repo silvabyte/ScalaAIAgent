@@ -65,12 +65,3 @@ case class ObjectResponse(
     model: String,
     finishReason: Option[String] = None
 ) derives ReadWriter
-
-// Streaming response for structured objects
-case class StreamingObjectResponse(
-    partialObject: ujson.Value,
-    isComplete: Boolean = false,
-    usage: Option[Usage] = None,
-    model: String,
-    finishReason: Option[String] = None
-) derives ReadWriter

@@ -30,3 +30,5 @@ work/
 references/
 codeloops.config.json
 .voltagent
+.scala-build
+.private

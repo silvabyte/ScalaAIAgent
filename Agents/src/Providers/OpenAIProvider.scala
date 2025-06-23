@@ -164,7 +164,7 @@ class OpenAIProvider(protected val apiKey: String) extends BaseLLMProvider:
         )
       )
     )
-
+    
     request.temperature.foreach(temp => baseObj("temperature") = temp)
     request.maxTokens.foreach(tokens => baseObj("max_tokens") = tokens)
 
