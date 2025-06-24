@@ -3,16 +3,7 @@ package agents
 import scala.concurrent.{Future, ExecutionContext}
 import scribe.Logging
 import agents.providers.LLMProvider
-import agents.{
-  ChatRequest,
-  ChatResponse,
-  ObjectRequest,
-  ObjectResponse,
-  ChatMessage,
-  Role,
-  LLMError,
-  JsonSchema
-}
+import agents.{ChatRequest, ChatResponse, ObjectRequest, ObjectResponse, ChatMessage, Role, LLMError, JsonSchema}
 import ujson.Value
 
 case class AgentConfig(

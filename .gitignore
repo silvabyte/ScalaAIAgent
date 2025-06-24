@@ -33,3 +33,4 @@ codeloops.config.json
 .scala-build
 .privatenode_modules/
 node_modules/
+.private

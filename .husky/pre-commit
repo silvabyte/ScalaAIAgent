@@ -1,1 +1,2 @@
 ./mill Agents.test
+scalafmt 

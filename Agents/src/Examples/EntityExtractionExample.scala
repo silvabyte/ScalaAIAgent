@@ -43,7 +43,8 @@ object EntityExtractionExample extends App:
         model = "claude-3-5-sonnet-20241022"
       )
 
-      val text = "Apple Inc. was founded by Steve Jobs in 1976. The company is headquartered in Cupertino, California and Tim Cook is the current CEO."
+      val text =
+        "Apple Inc. was founded by Steve Jobs in 1976. The company is headquartered in Cupertino, California and Tim Cook is the current CEO."
 
       Try {
         Await.result(

@@ -19,7 +19,7 @@ object ErrorHandlingExample extends App:
   )
 
   import scala.util.{Try, Success, Failure}
-  
+
   Try {
     Await.result(invalidAgent.generateText("Hello"), 10.seconds)
   } match {

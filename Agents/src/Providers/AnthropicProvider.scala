@@ -141,7 +141,8 @@ class AnthropicProvider(protected val apiKey: String) extends BaseLLMProvider:
 
       // Extract tool use result for structured output
       val content = json("content")
-      val toolUse = content.arr.find(item => item.obj.contains("type") && item("type").str == "tool_use")
+      val toolUse = content.arr
+        .find(item => item.obj.contains("type") && item("type").str == "tool_use")
         .getOrElse(throw LLMError("No tool_use found in Anthropic structured response"))
 
       val objectContent = toolUse("input")

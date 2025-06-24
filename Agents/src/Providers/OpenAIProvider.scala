@@ -90,14 +90,14 @@ class OpenAIProvider(protected val apiKey: String) extends BaseLLMProvider:
     schema match
       case obj: ujson.Obj =>
         val newObj = obj.copy()
-        
+
         // For object types, ensure OpenAI strict mode compliance
         if (obj.obj.get("type").exists(_.str == "object")) {
           // Add additionalProperties: false if not present
           if (!obj.obj.contains("additionalProperties")) {
             newObj("additionalProperties") = false
           }
-          
+
           // Ensure all properties are required for strict mode
           obj.obj.get("properties") match {
             case Some(propsObj: ujson.Obj) =>
@@ -105,16 +105,16 @@ class OpenAIProvider(protected val apiKey: String) extends BaseLLMProvider:
               // If there's no required array or it doesn't contain all properties, update it
               val currentRequired = obj.obj.get("required") match {
                 case Some(arr: ujson.Arr) => arr.arr.map(_.str).toSet
-                case _ => Set.empty[String]
+                case _                    => Set.empty[String]
               }
-              
+
               if (currentRequired != allPropertyKeys.toSet) {
                 newObj("required") = ujson.Arr(allPropertyKeys.map(ujson.Str(_))*)
               }
             case _ => // No properties, no required array needed
           }
         }
-        
+
         // Recursively process nested objects
         obj.obj.foreach { case (key, value) =>
           key match
@@ -164,7 +164,7 @@ class OpenAIProvider(protected val apiKey: String) extends BaseLLMProvider:
         )
       )
     )
-    
+
     request.temperature.foreach(temp => baseObj("temperature") = temp)
     request.maxTokens.foreach(tokens => baseObj("max_tokens") = tokens)
 
