@@ -31,4 +31,5 @@ references/
 codeloops.config.json
 .voltagent
 .scala-build
-.private
+.privatenode_modules/
+node_modules/

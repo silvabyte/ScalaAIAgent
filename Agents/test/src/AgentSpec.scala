@@ -1,9 +1,10 @@
 import utest.*
 import agents.*
 import agents.providers.*
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.concurrent.duration.*
 import scala.util.{Success, Failure}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object AgentSpec extends TestSuite:
 
@@ -22,9 +23,21 @@ object AgentSpec extends TestSuite:
         )
       )
 
+    override def generateObject(request: ObjectRequest): Future[ObjectResponse] =
+      Future.successful(
+        ObjectResponse(
+          `object` = ujson.Obj("mock" -> "response"),
+          usage = Some(Usage(10, 20, 30)),
+          model = request.model,
+          finishReason = Some("stop")
+        )
+      )
+
     override protected def buildHeaders(apiKey: String): Map[String, String] = Map.empty
     override protected def buildRequestBody(request: ChatRequest): ujson.Value = ujson.Obj()
+    override protected def buildObjectRequestBody(request: ObjectRequest): ujson.Value = ujson.Obj()
     override protected def parseResponse(responseBody: String): scala.util.Try[ChatResponse] = ???
+    override protected def parseObjectResponse(responseBody: String): scala.util.Try[ObjectResponse] = ???
 
   val tests = Tests {
 

@@ -1,0 +1,30 @@
+version: 1
+release:
+  # Branch configuration
+  branch: main
+
+  # Version bump type
+  defaultBump: patch
+
+  # Changelog configuration
+  changelog:
+    enabled: true
+    template: conventional
+
+  # Pre-release checks
+  checks:
+    - type: build
+      command: './mill Agents.test'
+
+  # Release actions actions
+  actions:
+    - type: custom
+      name: 'mill'
+      command: './mill Agents.assembly'
+    - type: git-tag
+    - type: commit-push
+    - type: github-release
+      # Release assets configuration - Specify files to upload with the release
+      # Supports glob patterns to match build artifacts
+      assets:
+        - 'out/Agents/assembly.dest/out.jar'

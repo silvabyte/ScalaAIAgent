@@ -1,14 +1,11 @@
 package build
 import mill._, scalalib._
-import $ivy.`de.tototec::de.tobiasroeser.mill.vcs.version::0.4.1`
-import de.tobiasroeser.mill.vcs.version.VcsVersion
+
 
 trait Shared extends ScalaModule {
   def scalaVersion = "3.6.2"
 
   def ivyDeps = Agg(
-    ivy"io.lettuce:lettuce-core:6.3.2.RELEASE",
-    ivy"com.lihaoyi::castor:0.3.0",
     ivy"com.lihaoyi::upickle:4.1.0",
     ivy"com.lihaoyi::os-lib:0.11.3",
     ivy"com.outr::scribe:3.6.6",

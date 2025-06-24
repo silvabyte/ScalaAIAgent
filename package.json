@@ -1,0 +1,16 @@
+{
+  "name": "ScalaAIAgent",
+  "version": "0.1.0",
+  "description": "A Scala library for building AI agents. This package json is used only for ci/cd and release management.",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"add your test command here\"",
+    "prepare": "husky"
+  },
+  "private": true,
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7"
+  }
+}
