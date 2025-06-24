@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2025-06-24
+
+* feat: add scalafmt precommit
+* chore: release v0.1.1
+
 ## [0.1.1] - 2025-06-24
 
 * chore: add npm test command
