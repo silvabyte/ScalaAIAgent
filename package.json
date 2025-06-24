@@ -1,6 +1,6 @@
 {
   "name": "ScalaAIAgent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Scala library for building AI agents. This package json is used only for ci/cd and release management.",
   "type": "module",
   "scripts": {
