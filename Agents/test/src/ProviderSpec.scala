@@ -28,17 +28,4 @@ object ProviderSpec extends TestSuite:
       assert(!provider.validateModel("unsupported-model"))
     }
 
-    // Note: buildRequestBody is protected, so we can't test it directly
-    // We test the full flow through the chat method with a mock
-
-    // Note: buildRequestBody is protected, so we can't test it directly
-
-    // Note: buildHeaders is protected, so we can't test it directly
-
-    // Note: parseResponse is protected, so we can't test it directly
-
-    // Note: parseResponse is protected, so we can't test it directly
-
-    // Note: parseResponse is protected, so we can't test it directly
-    // Integration tests would test the full flow
   }
