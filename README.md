@@ -11,7 +11,7 @@ A Scala library for building AI agents with pluggable LLM providers. Easily swit
 
 ### 1. Setup Dependencies
 
-//TODO: add this once an initial release version is cut
+This is for my personal projects, so I am side stepping maven, etc and using gh releases + mill directly to setup this as a dep. See ./build.mill.dependency.example. PRs are welcome if you need alt package management support.
 
 ### 2. Basic Usage
 
@@ -100,7 +100,6 @@ val response = Await.result(
 println(response.`object`)
 // Output: {"name": "Alex", "age": 28, "skills": ["Scala", "Java", "Python"]}
 ```
-
 
 ## API Reference
 

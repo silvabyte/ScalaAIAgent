@@ -1,0 +1,117 @@
+package build
+
+import scala.util.{Try, Success, Failure}
+import mill._, scalalib._
+import $ivy.`de.tototec::de.tobiasroeser.mill.vcs.version::0.4.1`
+import de.tobiasroeser.mill.vcs.version.VcsVersion
+
+/**
+ * This example shows how to install using mill + github releases directly
+ */
+
+
+
+
+
+
+case class GitHubDependency(
+  owner: String,
+  repo: String,
+  version: String = "main"
+)
+
+/**
+ * This trait is used to download and build GitHub dependencies.
+ * You can use as is or modify it to your needs.
+ */
+
+trait GitHubDepsModule extends ScalaModule {
+  def githubDeps: Seq[GitHubDependency] = Seq()
+  
+  def downloadAndBuildGitHubDeps = T {
+
+    val depsDir = T.dest / "github-deps"
+    os.makeDir.all(depsDir)
+    
+    githubDeps.map { dep =>
+      val repoDir = depsDir / s"${dep.owner}-${dep.repo}"
+      val jarPath = repoDir / "out" / "assembly.dest" / "out.jar"
+      
+      // Clone or update repo
+      if (!os.exists(repoDir)) {
+        os.proc("git", "clone", s"https://github.com/${dep.owner}/${dep.repo}.git", repoDir).call()
+      } else {
+        os.proc("git", "fetch", "origin").call(cwd = repoDir)
+      }
+      
+      // Checkout specific version
+      os.proc("git", "checkout", dep.version).call(cwd = repoDir)
+      
+      // Build the project (assuming it uses Mill)
+      if (os.exists(repoDir / "build.mill")) {
+        // Use ./mill script if available, otherwise try system mill
+        val millCmd = if (os.exists(repoDir / "mill")) "./mill" else "mill"
+        
+        Try {
+          os.proc(millCmd, "__.assembly").call(cwd = repoDir)
+        } match {
+          case Success(_) =>
+          case Failure(e) =>
+            // Fallback: try individual module assemblies
+            val modules = os.proc(millCmd, "resolve", "_").call(cwd = repoDir).out.text().split('\n')
+              .filter(_.nonEmpty).map(_.trim).toSeq
+            
+            modules.find(!_.contains(".")).foreach { module =>
+              os.proc(millCmd, s"$module.assembly").call(cwd = repoDir)
+            }
+        }
+        
+        // Finds the generated JAR
+        val outDir = repoDir / "out"
+        val jarFiles = os.walk(outDir)
+          .filter(_.ext == "jar")
+          .filter(p => p.toString.contains("assembly.dest") && !p.toString.contains("test"))
+        
+        if (jarFiles.nonEmpty) {
+          val jarFile = jarFiles.head
+          val targetJar = T.dest / s"${dep.owner}-${dep.repo}-${dep.version}.jar"
+          os.copy(jarFile, targetJar, replaceExisting = true)
+          PathRef(targetJar)
+        } else {
+          throw new Exception(s"No assembly JAR found for ${dep.owner}/${dep.repo}")
+        }
+      } else {
+        throw new Exception(s"No build.mill found in ${dep.owner}/${dep.repo}")
+      }
+    }
+  }
+  
+  override def unmanagedClasspath = T {
+    super.unmanagedClasspath() ++ downloadAndBuildGitHubDeps()
+  }
+}
+
+trait YourBaseModule extends GitHubDepsModule {
+  def scalaVersion = "3.6.2"
+
+  def ivyDeps = Agg(
+    ivy"io.lettuce:lettuce-core:6.3.2.RELEASE",
+    ivy"com.lihaoyi::castor:0.3.0",
+    ivy"com.lihaoyi::upickle:4.1.0",
+    ivy"com.lihaoyi::os-lib:0.11.3",
+    ivy"com.outr::scribe:3.6.6",
+    ivy"com.lihaoyi::requests:0.9.0"
+  )
+
+  object test extends ScalaTests {
+    def ivyDeps = Agg(ivy"com.lihaoyi::utest:0.8.5", ivy"org.scalamock::scalamock:7.1.0", ivy"org.scalatest::scalatest:3.2.19")
+    def testFramework = "utest.runner.Framework"
+  }
+}
+
+object YourApp extends YourBaseModule {
+    // adds as a github dependency
+  override def githubDeps = Seq(
+    GitHubDependency("silvabyte", "ScalaAIAgent", "v0.1.2")
+  )
+}
